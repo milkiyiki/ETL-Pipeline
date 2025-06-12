@@ -1,58 +1,45 @@
-import csv
-import gspread
-import psycopg2
-from oauth2client.service_account import ServiceAccountCredentials
+from sqlalchemy import create_engine
+from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
 
-def load_to_csv(data, filename='products.csv'):
-    if not data:
-        print("No data to write to CSV.")
-        return
-    with open(filename, mode='w', newline='', encoding='utf-8') as file:
-        writer = csv.DictWriter(file, fieldnames=data[0].keys())
-        writer.writeheader()
-        writer.writerows(data)
+def store_to_csv(df):
+    try:
+        df.to_csv('products.csv', index=False)
+        print("[CSV] Data berhasil disimpan ke file: products.csv")
+    except Exception as error:
+        print(f"[CSV] Gagal menyimpan data: {error}")
 
-def load_to_gsheet(data, creds_file='google-sheets-api.json', sheet_name='Products'):
-    if not data:
-        print("No data to upload to Google Sheets.")
-        return
-    scope = ['https://spreadsheets.google.com/feeds','https://www.googleapis.com/auth/drive']
-    creds = ServiceAccountCredentials.from_json_keyfile_name(creds_file, scope)
-    client = gspread.authorize(creds)
+def store_to_postgre(df, db_connection_url):
+    try:
+        engine = create_engine(db_connection_url)
+        with engine.connect() as conn:
+            df.to_sql('fashiontoscrape', con=conn, if_exists='append', index=False)
+            print("[PostgreSQL] Data berhasil ditambahkan ke tabel fashiontoscrape")
+    except Exception as error:
+        print(f"[PostgreSQL] Gagal menyimpan data: {error}")
+
+def store_to_sheets(df):
+    SERVICE_ACCOUNT_PATH = './google-sheets-api.json'
+    SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+    SHEET_ID = '1VnhY63XXDprPOX5g6m5VM7TFso1GLlavUmk-tqXdDOo'
+    TARGET_RANGE = 'Sheet1!A2'
+
+    try:
+        creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_PATH, scopes=SCOPES)
+        service = build('sheets', 'v4', credentials=creds)
+        sheet_api = service.spreadsheets()
+
+        values = df.values.tolist()
+        body = {'values': values}
+
+        sheet_api.values().update(
+            spreadsheetId=SHEET_ID,
+            range=TARGET_RANGE,
+            valueInputOption='RAW',
+            body=body
+        ).execute()
+
+        print(f"[Google Sheets] Data berhasil diunggah! https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit")
     
-    sheet = client.open(sheet_name).sheet1
-    sheet.clear()
-    sheet.insert_row(list(data[0].keys()), 1)
-    for row in data:
-        sheet.append_row(list(row.values()))
-
-def load_to_postgres(data):
-    if not data:
-        print("No data to insert to PostgreSQL.")
-        return
-    conn = psycopg2.connect(
-        dbname="your_db", user="your_user", password="your_password", host="localhost", port="5432"
-    )
-    cur = conn.cursor()
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS products (
-            Title TEXT,
-            Price FLOAT,
-            Rating FLOAT,
-            Colors TEXT,
-            Size TEXT,
-            Gender TEXT,
-            timestamp TEXT
-        );
-    ''')
-    for item in data:
-        cur.execute('''
-            INSERT INTO products (Title, Price, Rating, Colors, Size, Gender, timestamp)
-            VALUES (%s, %s, %s, %s, %s, %s, %s);
-        ''', (
-            item['Title'], item['Price'], item['Rating'], item['Colors'],
-            item['Size'], item['Gender'], item['timestamp']
-        ))
-    conn.commit()
-    cur.close()
-    conn.close()
+    except Exception as error:
+        print(f"[Google Sheets] Gagal menyimpan data: {error}")
