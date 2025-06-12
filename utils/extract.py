@@ -1,59 +1,99 @@
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from datetime import datetime  # Tambahkan baris ini
 import time
+import requests
+from bs4 import BeautifulSoup
 
-def extract_products(pages=50):
-    products = []
-    timestamp = datetime.now().isoformat()  # Gunakan datetime yang sudah diimpor
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36"
+    )
+}
+
+def fetch_page_content(url):
+    session = requests.Session()
+    try:
+        response = session.get(url, headers=HEADERS)
+        response.raise_for_status()
+        return response.content
+    except requests.exceptions.RequestException as error:
+        print(f"Gagal mengambil data dari {url}: {error}")
+        return None
+
+def extract_fashion_item(item_block):
+    try:
+        title_elem = item_block.find('h3', class_='product-title')
+        title = title_elem.text.strip() if title_elem else "Unknown Product"
+
+        price_elem = item_block.find('div', class_='price-container')
+        price_tag = price_elem.find('span', class_='price') if price_elem else item_block.find('p', class_='price')
+        price = price_tag.text.strip() if price_tag else "Price Unavailable"
+
+        # Default values
+        rating, color, size, gender = "Invalid Rating", "", "", ""
+
+        for p_tag in item_block.find_all('p'):
+            lower_text = p_tag.text.lower()
+            if "rating" in lower_text:
+                rating = p_tag.text.strip()
+            elif "colors" in lower_text:
+                color = p_tag.text.strip()
+            elif "size" in lower_text:
+                size = p_tag.text.strip()
+            elif "gender" in lower_text:
+                gender = p_tag.text.strip()
+
+        return {
+            "Title": title,
+            "Price": price,
+            "Rating": rating,
+            "Colors": color,
+            "Size": size,
+            "Gender": gender
+        }
+
+    except Exception as error:
+        print(f"Gagal mengekstrak data produk: {error}")
+        return {
+            "Title": "Unknown Product",
+            "Price": "Price Unavailable",
+            "Rating": "Invalid Rating",
+            "Colors": "",
+            "Size": "",
+            "Gender": ""
+        }
+
+def scrape_all_products(base_url='https://fashion-studio.dicoding.dev', start_page=1, delay=2):
+    all_products = []
+    current_page = start_page
 
     try:
-        driver = webdriver.Chrome()
-        base_url = "https://fashion-studio.dicoding.dev/?page={}"
+        while True:
+            page_url = base_url if current_page == 1 else base_url.format(current_page)
+            print(f"Mengakses halaman: {page_url}")
 
-        for page in range(1, pages + 1):
-            print(f"Scraping page {page}...") 
-            driver.get(base_url.format(page))
+            html_content = fetch_page_content(page_url)
+            if not html_content:
+                break
 
-            WebDriverWait(driver, 15).until(
-                EC.presence_of_element_located((By.CLASS_NAME, "product-title"))
-            )
+            soup = BeautifulSoup(html_content, "html.parser")
+            product_sections = soup.find_all('div', class_='product-details')
 
-            titles = driver.find_elements(By.CLASS_NAME, "product-title")
-            prices = driver.find_elements(By.CLASS_NAME, "product-price")
-            ratings = driver.find_elements(By.CLASS_NAME, "product-rating")
-            colors = driver.find_elements(By.CLASS_NAME, "product-colors")
-            sizes = driver.find_elements(By.CLASS_NAME, "product-size")
-            genders = driver.find_elements(By.CLASS_NAME, "product-gender")
+            for section in product_sections:
+                product_data = extract_fashion_item(section)
+                all_products.append(product_data)
 
-            print(f"Found {len(titles)} titles, {len(prices)} prices, {len(ratings)} ratings.")  # Debugging: Check element counts
+            next_btn = soup.find('li', class_='page-item next')
+            if next_btn:
+                current_page += 1
+                time.sleep(delay)
+            else:
+                break
 
-            for i in range(len(titles)):
-                try:
-                    product = {
-                        "Title": titles[i].text.strip(),
-                        "Price": prices[i].text.strip(),
-                        "Rating": ratings[i].text.strip(),
-                        "Colors": colors[i].text.strip(),
-                        "Size": sizes[i].text.strip(),
-                        "Gender": genders[i].text.strip(),
-                        "Timestamp": timestamp
-                    }
-                    products.append(product)
-                except IndexError:
-                    print(f"Warning: Missing data on page {page}, product index {i}")
-                    continue
+        return all_products
 
-            time.sleep(1)  # Delay kecil agar tidak overload server
-
-    except Exception as e:
-        print(f"[ERROR] Failed to extract data: {e}")
-
-    finally:
-        driver.quit()
-
-    print(f"Extracted {len(products)} products.")  # Debugging: Check the number of extracted products
-    return products
+    except requests.exceptions.RequestException as error:
+        print(f"Kesalahan HTTP saat scraping: {error}")
+        return None
+    except Exception as error:
+        print(f"Kesalahan tak terduga saat scraping: {error}")
+        return None
