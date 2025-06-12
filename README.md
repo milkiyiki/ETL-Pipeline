@@ -1,8 +1,3 @@
-Berikut versi yang sudah dimodifikasi dan lebih lengkap untuk `README.md` kamu. Aku juga perbaiki struktur, formatting, dan tambahkan detail penting seperti requirement, struktur folder, serta output yang dihasilkan.
-
----
-
-```markdown
 # Membangun ETL Pipeline Sederhana
 
 Proyek ini bertujuan untuk membangun pipeline ETL (Extract, Transform, Load) sederhana menggunakan Python. Pipeline ini mengekstrak data dari situs fashion, mentransformasikannya menjadi format yang bersih, lalu menyimpannya ke tiga tujuan: **CSV**, **Google Sheets**, dan **PostgreSQL**.
