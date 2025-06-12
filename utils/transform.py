@@ -1,42 +1,42 @@
-def transform_products(products):
-    transformed = []
+import pandas as pd
+from datetime import datetime
 
-    for product in products:
-        try:
-            price_usd = float(product['Price'].replace('$', '').strip())
-            price_idr = price_usd * 16000
-        except (ValueError, AttributeError, KeyError):
-            price_idr = None
+def transform_to_dataframe(data):
+    try:
+        return pd.DataFrame(data)
+    except Exception as e:
+        print(f"[DataFrame Creation] Gagal membuat DataFrame: {e}")
+        return pd.DataFrame()
 
-        try:
-            rating = float(product['Rating'].split()[0])
-        except (ValueError, AttributeError, KeyError):
-            rating = None
+def transform_data(df, exchange_rate):
+    required_columns = ['Title', 'Price', 'Rating', 'Colors', 'Size', 'Gender']
+    
+    if not all(col in df.columns for col in required_columns):
+        print("[Transform] DataFrame tidak memiliki semua kolom yang dibutuhkan.")
+        return pd.DataFrame()
+    
+    try:
+        # Tambah kolom timestamp
+        df['Extraction_Timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-        colors = ''.join(filter(str.isdigit, product.get('Colors', '')))
-        size = product.get('Size', '').replace("Size: ", "").strip()
-        gender = product.get('Gender', '').replace("Gender: ", "").strip()
-        title = product.get('Title', '').strip()
-        timestamp = product.get('Timestamp', '')
+        # Filter invalid entries
+        df = df[~df['Title'].str.contains("Unknown Product", na=False)]
+        df = df[~df['Rating'].astype(str).str.contains("Invalid Rating", na=False)]
+        df = df[~df['Price'].astype(str).str.contains("Price Unavailable", na=False)]
 
-        # Masukkan hanya jika price dan rating valid
-        if price_idr is not None and rating is not None:
-            transformed.append({
-                "Title": title,
-                "Price": price_idr,
-                "Rating": rating,
-                "Colors": colors,
-                "Size": size,
-                "Gender": gender,
-                "Timestamp": timestamp
-            })
+        # Bersihkan data
+        df = df.drop_duplicates().dropna()
 
-    # Hilangkan duplikat berdasarkan Title
-    seen = set()
-    unique_products = []
-    for p in transformed:
-        if p['Title'] not in seen:
-            seen.add(p['Title'])
-            unique_products.append(p)
+        # Transformasi kolom
+        df['Price'] = df['Price'].replace(r'\$', '', regex=True).astype(float) * exchange_rate
+        df['Rating'] = df['Rating'].str.extract(r'(\d+\.\d+)').astype(float)
+        df['Colors'] = df['Colors'].replace('Colors', '', regex=True).str.strip().astype(int)
+        df['Size'] = df['Size'].replace('Size:', '', regex=True).str.strip()
+        df['Gender'] = df['Gender'].replace('Gender:', '', regex=True).str.strip()
 
-    return unique_products
+        # Pastikan tipe data sesuai
+        df = df.astype({
+            'Title': 'object',
+            'Price': 'float64',
+            'Rating': 'float64',
+            'Colors': 'int64',
