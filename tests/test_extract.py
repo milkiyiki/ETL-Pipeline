@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 from bs4 import BeautifulSoup
 
-from utils.extract import extract_fashion_data, fetching_content, scrape_fashion
+from utils.extract import extract_fashion_item, fetch_page_content, scrape_all_products
 
 class FashionDataExtractionTests(unittest.TestCase):
     def setUp(self):
@@ -20,7 +20,7 @@ class FashionDataExtractionTests(unittest.TestCase):
         self.product_block = self.parsed_html.select_one('div.product-details')
 
     def test_single_product_extraction(self):
-        extracted = extract_fashion_data(self.product_block)
+        extracted = extract_fashion_item(self.product_block)
         expected_output = {
             "Title": "Unknown Product",
             "Price": "$100.00",
@@ -52,14 +52,14 @@ class FashionDataExtractionTests(unittest.TestCase):
         mock_resp.content = html_content.encode("utf-8")
         mock_request.return_value = mock_resp
 
-        fetched = fetching_content("https://fashion-studio.dicoding.dev")
+        fetched = fetch_page_content("https://fashion-studio.dicoding.dev")
         self.assertIn(b"Unknown Product", fetched)
 
-    @patch("utils.extract.fetching_content")
+    @patch("utils.extract.fetch_page_content")
     def test_scraping_multiple_products(self, mocked_fetch_content):
         mocked_fetch_content.return_value = self.sample_html
 
-        scraped_data = scrape_fashion("https://fashion-studio.dicoding.dev")
+        scraped_data = scrape_all_products("https://fashion-studio.dicoding.dev")
         self.assertIsInstance(scraped_data, list)
         self.assertTrue(len(scraped_data) >= 1)
         self.assertIn("Title", scraped_data[0])
