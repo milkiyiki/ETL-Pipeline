@@ -1,52 +1,49 @@
+import unittest
 import pandas as pd
-from datetime import datetime
+from utils.transform import transform_to_dataframe, transform_data
 
-def transform_to_dataframe(data):
-    try:
-        return pd.DataFrame(data)
-    except Exception as e:
-        print(f"[DataFrame Creation] Gagal membuat DataFrame: {e}")
-        return pd.DataFrame()
+class TransformFunctionalityTests(unittest.TestCase):
 
-def transform_data(df, exchange_rate):
-    required_columns = ['Title', 'Price', 'Rating', 'Colors', 'Size', 'Gender']
-    
-    if not all(col in df.columns for col in required_columns):
-        print("[Transform] DataFrame tidak memiliki semua kolom yang dibutuhkan.")
-        return pd.DataFrame()
-    
-    try:
-        # Tambah kolom timestamp
-        df['Extraction_Timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    def setUp(self):
+        self.raw_data = [
+            {
+                "Title": "Product A",
+                "Price": "$10.00",
+                "Rating": "Rating: ⭐ 4.5 / 5",
+                "Colors": "3 Colors",
+                "Size": "Size: M",
+                "Gender": "Gender: Men"
+            },
+            {
+                "Title": "Unknown Product",
+                "Price": "Price Unavailable",
+                "Rating": "Invalid Rating",
+                "Colors": "",
+                "Size": "",
+                "Gender": ""
+            }
+        ]
 
-        # Filter invalid entries
-        df = df[~df['Title'].str.contains("Unknown Product", na=False)]
-        df = df[~df['Rating'].astype(str).str.contains("Invalid Rating", na=False)]
-        df = df[~df['Price'].astype(str).str.contains("Price Unavailable", na=False)]
+    def test_dataframe_creation(self):
+        df = transform_to_dataframe(self.raw_data)
+        self.assertIsInstance(df, pd.DataFrame)
+        self.assertEqual(len(df), 2)
+        self.assertIn("Title", df.columns)
 
-        # Bersihkan data
-        df = df.drop_duplicates().dropna()
+    def test_data_transformation(self):
+        df = transform_to_dataframe(self.raw_data)
+        transformed_df = transform_data(df, exchange_rate=16000)
 
-        # Transformasi kolom
-        df['Price'] = df['Price'].replace(r'\$', '', regex=True).astype(float) * exchange_rate
-        df['Rating'] = df['Rating'].str.extract(r'(\d+\.\d+)').astype(float)
-        df['Colors'] = df['Colors'].replace('Colors', '', regex=True).str.strip().astype(int)
-        df['Size'] = df['Size'].replace('Size:', '', regex=True).str.strip()
-        df['Gender'] = df['Gender'].replace('Gender:', '', regex=True).str.strip()
+        self.assertEqual(len(transformed_df), 1)
 
-        # Pastikan tipe data sesuai
-        df = df.astype({
-            'Title': 'object',
-            'Price': 'float64',
-            'Rating': 'float64',
-            'Colors': 'int64',
-            'Size': 'object',
-            'Gender': 'object',
-            'Extraction_Timestamp': 'object'
-        })
+        self.assertTrue(pd.api.types.is_float_dtype(transformed_df["Price"]))
+        self.assertTrue(pd.api.types.is_float_dtype(transformed_df["Rating"]))
+        self.assertTrue(pd.api.types.is_integer_dtype(transformed_df["Colors"]))
+        self.assertIn("Extraction_Timestamp", transformed_df.columns)
 
-        return df
-    
-    except Exception as e:
-        print(f"[Transform Error] Gagal mentransformasi data: {e}")
-        return pd.DataFrame()
+        self.assertEqual(transformed_df.iloc[0]["Title"], "Product A")
+        self.assertEqual(transformed_df.iloc[0]["Size"], "M")
+        self.assertEqual(transformed_df.iloc[0]["Gender"], "Men")
+
+if __name__ == "__main__":
+    unittest.main()
