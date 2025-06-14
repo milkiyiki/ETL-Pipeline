@@ -8,25 +8,25 @@ def main():
     
     if all_fashion_data:
         try:
-            DataFrame = transform_to_DataFrame(all_fashion_data)
-            DataFrame = transform_data(DataFrame, 16000)
-            
+            print("✅ Scraping selesai. Jumlah produk:", len(all_fashion_data))
+            df = transform_to_DataFrame(all_fashion_data)
+            df = transform_data(df, 16000)
+
+            print("✅ Transformasi data selesai.")
             db_url = 'postgresql+psycopg2://postgres:postgres@localhost:5432/fashiondb'
             
-            store_to_csv(DataFrame)
-            store_to_postgre(DataFrame, db_url)
-            store_to_sheets(DataFrame)
+            print("✅ Menyimpan data ke CSV, PostgreSQL, dan Google Sheets...")
+            store_to_csv(df)
+            store_to_postgre(df, db_url)
+            store_to_sheets(df)
 
-            print()
-            print('-' * 20)
-            print()
-
-            print(DataFrame.info())
+            print("\n" + "-" * 20 + "\n")
+            print(df.info())
 
         except Exception as e:
-            print(f"Terjadi kesalahan dalam proses: {e}")
+            print(f"❌ Terjadi kesalahan dalam proses: {e}")
     else:
-        print("Tidak ada data yang ditemukan.")
+        print("⚠️ Tidak ada data yang ditemukan.")
 
 if __name__ == '__main__':
     main()
