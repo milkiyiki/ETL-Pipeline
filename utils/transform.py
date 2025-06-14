@@ -40,3 +40,13 @@ def transform_data(df, exchange_rate):
             'Price': 'float64',
             'Rating': 'float64',
             'Colors': 'int64',
+            'Size': 'object',
+            'Gender': 'object',
+            'Extraction_Timestamp': 'object'
+        })
+
+        return df
+    
+    except Exception as e:
+        print(f"[Transform Error] Gagal mentransformasi data: {e}")
+        return pd.DataFrame()
