@@ -1,5 +1,5 @@
 from utils.extract import scrape_all_products
-from utils.transform import transform_to_DataFrame, transform_data
+from utils.transform import transform_to_dataframe, transform_data
 from utils.load import store_to_postgre, store_to_csv, store_to_sheets
 
 def main():
@@ -9,7 +9,7 @@ def main():
     if all_fashion_data:
         try:
             print("✅ Scraping selesai. Jumlah produk:", len(all_fashion_data))
-            df = transform_to_DataFrame(all_fashion_data)
+            df = transform_to_dataframe(all_fashion_data)
             df = transform_data(df, 16000)
 
             print("✅ Transformasi data selesai.")
