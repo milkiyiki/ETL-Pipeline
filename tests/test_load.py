@@ -7,8 +7,13 @@ class LoadFunctionalityTests(unittest.TestCase):
 
     def setUp(self):
         self.sample_data = pd.DataFrame({
-            'name': ['Product A', 'Product B'],
-            'price': [10000, 20000]
+            'Title': ['Product A', 'Product B'],
+            'Price': [1600000, 2000000],
+            'Rating': [4.5, 4.0],
+            'Colors': [3, 2],
+            'Size': ['M', 'L'],
+            'Gender': ['Men', 'Women'],
+            'Extraction_Timestamp': ['2024-06-12 12:00:00', '2024-06-12 12:00:00']
         })
 
     def test_csv_storage(self):
